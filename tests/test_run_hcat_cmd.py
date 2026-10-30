@@ -511,33 +511,21 @@ class TestRunHcatCmd:
         assert main_module._brain_enabled is True
         assert "Some unrelated fatal hashcat error." in capsys.readouterr().err
 
-    def test_brain_rejection_recovers_with_the_long_form_client_flag(
-        self, main_module, tmp_path, monkeypatch
-    ):
-        # _maybe_add_brain's own guard treats any "--brain-*" token as
-        # brain-ish (so an operator's own long-form flags in hcatTuning are
-        # respected), but the stderr-capture decision used to be keyed on
-        # "-z" alone. An operator who wrote hashcat's long form
-        # "--brain-client" instead of "-z" got no stderr capture and thus no
-        # recovery at all. This pins that both halves now agree.
+    @pytest.fixture
+    def brain_longform_recovery(self, main_module, tmp_path, monkeypatch):
+        """Roda _run_hcat_cmd com flags longas --brain-* e o servidor recusando;
+        devolve as chamadas Popen capturadas (falha -> retry)."""
         monkeypatch.setattr(main_module, "_brain_enabled", True)
         hash_file = str(tmp_path / "hashes.txt")
 
         long_form_cmd = [
-            "hashcat",
-            "-m",
-            "3200",
+            "hashcat", "-m", "3200",
             "--brain-client",
-            "--brain-host",
-            "127.0.0.1",
-            "--brain-port",
-            "6863",
-            "--brain-password",
-            "pw",
-            "--brain-client-features",
-            "3",
-            "--brain-session",
-            "0xdeadbeef",
+            "--brain-host", "127.0.0.1",
+            "--brain-port", "6863",
+            "--brain-password", "pw",
+            "--brain-client-features", "3",
+            "--brain-session", "0xdeadbeef",
         ]
 
         fail_proc = _make_mock_proc()
@@ -569,12 +557,20 @@ class TestRunHcatCmd:
                 hash_file=hash_file,
             )
 
+        return popen_calls
+
+    def test_brain_rejection_recovers_with_the_long_form_client_flag(self, brain_longform_recovery):
+        """Falha com --brain-client e re-tenta sem nenhuma flag --brain-*."""
+        popen_calls = brain_longform_recovery
         assert len(popen_calls) == 2
         first_cmd, second_cmd = popen_calls[0][0], popen_calls[1][0]
         assert "--brain-client" in first_cmd
         assert not any(str(a).startswith("--brain-") for a in second_cmd)
-        assert main_module._brain_enabled is False
 
+    def test_brain_long_form_rejection_disables_brain(self, main_module, brain_longform_recovery):
+        """Após a recuperação, o brain fica desativado."""
+        assert main_module._brain_enabled is False
+        
     def test_strip_brain_flags_handles_the_equals_form(self, main_module):
         # hcatTuning is fed through shlex.split, so an operator controls the
         # token shape. "--brain-host=127.0.0.1" carries its value in the
