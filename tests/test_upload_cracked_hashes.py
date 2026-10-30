@@ -3,6 +3,7 @@ import json
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from hate_crack.api import HashviewAPI
+from types import SimpleNamespace
 
 
 def get_hashview_config():
@@ -34,29 +35,18 @@ def test_upload_cracked_hashes_from_file():
     assert result.get("type") != "Error"
 
 
-def test_upload_cracked_hashes_preserves_plaintext_whitespace(tmp_path):
-    """A plaintext with leading/trailing spaces must not be flagged as a
-    hash/plaintext mismatch — see #244.
-
-    A bare ``.strip()`` on the plaintext field before validation eats
-    whitespace that is part of the real password, desyncing it from the
-    hash it was validated against and causing a false-positive skip.
-    Regression test using synthetic plaintext with padded spaces.
-    """
+@pytest.fixture
+def padded_whitespace_upload(tmp_path):
+    """Sobe um hash cujo plaintext tem espaços nas pontas; devolve o resultado e o corpo enviado."""
     from hate_crack.api import _digest_for_type
 
-    # Use synthetic plaintext, not a real password
     synthetic_plain = "Synthetic-Example-Xxx"
     padded_plain = " " + synthetic_plain + " "
-
-    # Compute the correct NTLM hash for the padded plaintext
     padded_ntlm = _digest_for_type("1000", padded_plain.encode("utf-8"))
 
-    # Create the cracked hash:plaintext file
     cracked_file = tmp_path / "cracked.txt"
     cracked_file.write_text(f"{padded_ntlm}:{padded_plain}\n")
 
-    # Stub the cache functions to prevent writing to the real ~/.hate_crack directory
     with (
         patch("hate_crack.api.load_cache", return_value={}),
         patch("hate_crack.api.append_to_cache"),
@@ -72,18 +62,21 @@ def test_upload_cracked_hashes_preserves_plaintext_whitespace(tmp_path):
         result = api.upload_cracked_hashes(
             str(cracked_file), hash_type="1000", validate=True
         )
-
-        assert result["skipped"] == 0, (
-            f"plaintext with padded spaces should not be skipped, got {result}"
-        )
-        assert result["uploaded"] == 1, f"should have uploaded 1 hash, got {result}"
-
-        # Verify the plaintext with its leading/trailing spaces was sent to Hashview intact
         posted_body = api.session.post.call_args.kwargs["data"]
-        assert padded_plain.encode() in posted_body, (
-            f"The padded plaintext '{padded_plain}' must reach Hashview intact, not stripped"
-        )
 
+    return SimpleNamespace(result=result, posted_body=posted_body, padded_plain=padded_plain)
+
+
+def test_padded_plaintext_is_not_skipped(padded_whitespace_upload):
+    """Plaintext com espaços nas pontas não é pulado na validação."""
+    assert padded_whitespace_upload.result["skipped"] == 0
+    assert padded_whitespace_upload.result["uploaded"] == 1
+
+
+def test_padded_plaintext_reaches_hashview_intact(padded_whitespace_upload):
+    """Os espaços do plaintext chegam intactos ao Hashview (não são removidos)."""
+    c = padded_whitespace_upload
+    assert c.padded_plain.encode() in c.posted_body
 
 def _double_encode(text):
     """Reproduce the pre-07c2f15 corruption: valid UTF-8 read as latin-1,
