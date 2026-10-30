@@ -85,24 +85,15 @@ def _double_encode(text):
     return text.encode("utf-8").decode("latin-1").encode("utf-8").decode("utf-8")
 
 
-def test_upload_repairs_historical_double_encoded_ntlm_plaintext(tmp_path):
-    """A plaintext corrupted by the pre-07c2f15 _wire_field_bytes bug is
-    auto-repaired and uploaded correctly, instead of being skipped.
-
-    Regression test for the residual data left behind by that bug: any NTLM
-    plaintext uploaded before the fix went through a latin-1-decode ->
-    utf-8-encode round trip that mangled non-ASCII characters (e.g. "café"
-    became "cafÃ©"), corrupting it into a string that no longer hashes to the
-    claimed digest. That corruption is exactly one reversible round trip
-    (decode as UTF-8, encode as latin-1) away from the real password, so it
-    should be repaired rather than silently dropped.
-    """
+@pytest.fixture
+def double_encoded_repair_upload(tmp_path):
+    """Sobe um plaintext corrompido por double-encode; devolve resultado, corpo e os plaintexts."""
     from hate_crack.api import _digest_for_type
 
-    real_plain = "Synthetic-Exámpleó123+"  # non-ASCII, not a real password
+    real_plain = "Synthetic-Exámpleó123+"  # non-ASCII, não é senha real
     ntlm = _digest_for_type("1000", real_plain.encode("utf-8"))
     corrupted_plain = _double_encode(real_plain)
-    assert corrupted_plain != real_plain
+    assert corrupted_plain != real_plain  # sanidade: o double-encode mudou o texto
 
     cracked_file = tmp_path / "cracked.txt"
     cracked_file.write_text(f"{ntlm}:{corrupted_plain}\n", encoding="utf-8")
@@ -122,21 +113,27 @@ def test_upload_repairs_historical_double_encoded_ntlm_plaintext(tmp_path):
         result = api.upload_cracked_hashes(
             str(cracked_file), hash_type="1000", validate=True
         )
-
-        assert result["skipped"] == 0, (
-            f"repaired line should not count as skipped, got {result}"
-        )
-        assert result["uploaded"] == 1
-        assert result.get("repaired") == 1, (
-            f"expected repaired count of 1, got {result}"
-        )
-
         posted_body = api.session.post.call_args.kwargs["data"]
-        assert real_plain.encode("utf-8") in posted_body, (
-            "the repaired (real) plaintext must be what's sent to Hashview"
-        )
-        assert corrupted_plain.encode("utf-8") not in posted_body
 
+    return SimpleNamespace(
+        result=result, posted_body=posted_body,
+        real_plain=real_plain, corrupted_plain=corrupted_plain,
+    )
+
+
+def test_double_encoded_line_is_repaired_not_skipped(double_encoded_repair_upload):
+    """A linha corrompida é reparada e contabilizada (não pulada)."""
+    r = double_encoded_repair_upload.result
+    assert r["skipped"] == 0
+    assert r["uploaded"] == 1
+    assert r.get("repaired") == 1
+
+
+def test_repaired_plaintext_is_what_gets_sent(double_encoded_repair_upload):
+    """O plaintext reparado (real) é enviado; o corrompido não."""
+    c = double_encoded_repair_upload
+    assert c.real_plain.encode("utf-8") in c.posted_body
+    assert c.corrupted_plain.encode("utf-8") not in c.posted_body
 
 def test_upload_quarantines_unrecoverable_invalid_plaintext(tmp_path):
     """A plaintext that fails validation and isn't the known double-encoding
