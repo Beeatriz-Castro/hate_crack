@@ -2287,14 +2287,10 @@ class TestStreamedDownload:
         mock_resp = _make_mock_response(status_code=200, content=b"some data")
         mock_resp.iter_content.side_effect = KeyboardInterrupt
         out = tmp_path / "out.txt"
-        ki_raised = False
         with patch("hate_crack.api.requests.get", return_value=mock_resp):
-            try:
+            with pytest.raises(KeyboardInterrupt):
                 _streamed_download("https://example.com/file.txt", str(out))
-            except KeyboardInterrupt:
-                ki_raised = True
-        assert ki_raised
-        assert not (tmp_path / "out.txt.part").exists()
+        assert not (tmp_path / "out.txt.part").exists(), "partial .part file must be removed on interrupt"
 
     def test_skip_existing(self, tmp_path):
         out = tmp_path / "out.txt"
