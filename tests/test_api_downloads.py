@@ -3307,48 +3307,13 @@ class TestDownloadAllWeakpassTorrents:
         cache_file = tmp_path / "wordlists.json"
 
         def mock_get_impl(url, **kwargs):
-            mock_resp = MagicMock()
             page = kwargs.get("params", {}).get("page", 1)
-            if page == 1:
-                mock_resp.json.return_value = {
-                    "data": [
-                        {
-                            "id": 1,
-                            "name": "list1",
-                            "rank": "A",
-                            "size": 100,
-                            "count": 10,
-                            "rate": 1.0,
-                            "slug": "list1",
-                            "torrent_url": "url1",
-                        }
-                    ],
-                    "meta": {"last_page": 3},
-                }
-                mock_resp.raise_for_status.return_value = None
-            elif page == 2:
-                mock_resp.raise_for_status.side_effect = req_lib.HTTPError("500")
-            elif page == 3:
-                mock_resp.json.return_value = {
-                    "data": [
-                        {
-                            "id": 3,
-                            "name": "list3",
-                            "rank": "C",
-                            "size": 300,
-                            "count": 30,
-                            "rate": 3.0,
-                            "slug": "list3",
-                            "torrent_url": "url3",
-                        }
-                    ],
-                    "meta": {"last_page": 3},
-                }
-                mock_resp.raise_for_status.return_value = None
-            else:
-                mock_resp.json.return_value = {"data": [], "meta": {"last_page": 3}}
-                mock_resp.raise_for_status.return_value = None
-            return mock_resp
+            pages = {
+                1: _json_response([_weakpass_entry(1, "list1", "A")], last_page=3),
+                2: _failing_resp(req_lib.HTTPError("500")),
+                3: _json_response([_weakpass_entry(3, "list3", "C", 300, 30, 3.0, "list3", "url3")], last_page=3),
+            }
+            return pages.get(page, _json_response([], last_page=3))
 
         download_calls = []
 
