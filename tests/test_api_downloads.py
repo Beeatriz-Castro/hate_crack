@@ -2766,29 +2766,15 @@ class TestWeakpassApiListing:
         """Test that total_pages=2 with last_page=5 fetches exactly pages 1 and 2."""
 
         def mock_get_impl(url, **kwargs):
-            mock_resp = MagicMock()
             page = kwargs.get("params", {}).get("page", 1)
-            if page in [1, 2]:
-                mock_resp.json.return_value = {
-                    "data": [
-                        {
-                            "id": page,
-                            "name": f"list{page}",
-                            "rank": "S",
-                            "size": 100 * page,
-                            "count": 10 * page,
-                            "rate": 1.0 * page,
-                            "slug": f"list{page}",
-                            "torrent_url": f"url{page}",
-                        }
-                    ],
-                    "meta": {"last_page": 5},
-                }
-                mock_resp.raise_for_status.return_value = None
-            else:
-                mock_resp.json.return_value = {"data": [], "meta": {"last_page": 5}}
-                mock_resp.raise_for_status.return_value = None
-            return mock_resp
+            pages = {
+                p: _json_response(
+                    [_weakpass_entry(p, f"list{p}", "S", 100 * p, 10 * p, 1.0 * p, f"list{p}", f"url{p}")],
+                    last_page=5,
+                )
+                for p in (1, 2)
+            }
+            return pages.get(page, _json_response([], last_page=5))
 
         with patch(
             "hate_crack.api.requests.get", side_effect=mock_get_impl
@@ -2796,13 +2782,10 @@ class TestWeakpassApiListing:
             result = _api_mod.fetch_all_weakpass_wordlists_multithreaded(total_pages=2)
 
         # Should only call pages 1 and 2, not 3-5
-        pages_called = set()
-        for call_args in mock_get.call_args_list:
-            params = call_args[1].get("params", {})
-            if "page" in params:
-                pages_called.add(params["page"])
-
-        assert pages_called == {1, 2}
+        pages_called = {
+            c.kwargs.get("params", {}).get("page") for c in mock_get.call_args_list
+        } - {None}
+        assert pages_called == {1, 2}, "only pages 1 and 2 are requested"
         assert len(result) == 2
 
     def test_page1_malformed_json_response_returns_empty_and_prints_error(self, capsys):
