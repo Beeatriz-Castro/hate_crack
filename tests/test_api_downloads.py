@@ -2313,12 +2313,12 @@ class TestHashmobBackoff:
             result = _with_hashmob_backoff(
                 fn, max_attempts=3, base_delay=1, step=1, max_delay=10
             )
-        assert result is False
-        assert fn.call_count == 3
+        assert result is False, "returns failure after exhausting attempts"
+        assert fn.call_count == 3, "function is tried max_attempts times"
         # sleep called between attempts, but NOT after the last attempt
-        assert mock_sleep.call_count == 2
+        assert mock_sleep.call_count == 2, "sleeps between attempts but not after the last"
         captured = capsys.readouterr()
-        assert "gave up after 3 attempts" in captured.out
+        assert "gave up after 3 attempts" in captured.out, "gives a clear give-up message"
 
     def test_succeeds_on_first_try(self):
         fn = MagicMock(return_value=True)
