@@ -2465,12 +2465,12 @@ class TestListAndDownloadOfficialWordlistsSkipExisting:
         ):
             list_and_download_official_wordlists()
 
-        assert mock_dl.call_count == 1
+        assert mock_dl.call_count == 1, "only the missing file is downloaded"
         called_filename = mock_dl.call_args.args[0]
-        assert called_filename == "new.txt"
-        assert mock_get.call_args.kwargs["headers"] == {}
+        assert called_filename == "new.txt", "the new file is the one downloaded"
+        assert mock_get.call_args.kwargs["headers"] == {}, "no auth header on the public listing"
         captured = capsys.readouterr()
-        assert "Skipping existing.txt" in captured.out
+        assert "Skipping existing.txt" in captured.out, "existing file is reported as skipped"
 
     def test_sends_api_key_header_on_listing_request(self, tmp_path, capsys):
         wordlists_dir = tmp_path / "wordlists"
