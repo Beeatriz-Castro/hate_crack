@@ -177,8 +177,9 @@ class TestTransmissionSession:
             patch("atexit.register"),
         ):
             ts = TransmissionSession(str(tmp_path), startup_timeout=1.0)
-            with pytest.raises(RuntimeError, match="Transmission daemon failed"):
+            with pytest.raises(RuntimeError, match="Transmission daemon failed") as exc_info:
                 ts.__enter__()
+        assert "Transmission daemon failed" in str(exc_info.value), "startup timeout surfaces a clear error"
 
     def test_add_uses_transmission_remote_and_returns_new_id(self, tmp_path):
         ts = TransmissionSession(str(tmp_path))
