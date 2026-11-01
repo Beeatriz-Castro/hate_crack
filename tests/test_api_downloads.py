@@ -126,17 +126,17 @@ class TestTransmissionSession:
             try:
                 # Popen called with transmission-daemon and key flags
                 args = popen.call_args[0][0]
-                assert args[0] == "transmission-daemon"
-                assert "-f" in args
-                assert "--port" in args
-                assert "12345" in args
-                assert "--no-auth" in args
-                assert "--download-dir" in args
-                assert str(tmp_path) in args
+                assert args[0] == "transmission-daemon", "daemon binary is invoked"
+                assert "-f" in args, "daemon runs in foreground"
+                assert "--port" in args, "RPC port flag is passed"
+                assert "12345" in args, "chosen free port is used"
+                assert "--no-auth" in args, "auth is disabled for the local daemon"
+                assert "--download-dir" in args, "download dir flag is passed"
+                assert str(tmp_path) in args, "download dir points to the session path"
                 # Probe used transmission-remote with -l
                 probe_args = run_mock.call_args[0][0]
-                assert probe_args[0] == "transmission-remote"
-                assert probe_args[-1] == "-l"
+                assert probe_args[0] == "transmission-remote", "probe uses transmission-remote"
+                assert probe_args[-1] == "-l", "probe lists torrents with -l"
             finally:
                 ts._stopped = True  # avoid running real cleanup
 
@@ -213,11 +213,11 @@ class TestTransmissionSession:
         result = MagicMock(returncode=0, stdout=stdout, stderr="")
         with patch("subprocess.run", return_value=result):
             entries = ts.list()
-        assert len(entries) == 2
-        assert entries[0]["id"] == 1
-        assert entries[0]["percent_done"] == 100.0
-        assert entries[1]["id"] == 2
-        assert entries[1]["percent_done"] == 45.0
+        assert len(entries) == 2, "should parse two torrent rows"
+        assert entries[0]["id"] == 1, "first torrent should have id 1"
+        assert entries[0]["percent_done"] == 100.0, "first torrent is fully downloaded"
+        assert entries[1]["id"] == 2, "second torrent should have id 2"
+        assert entries[1]["percent_done"] == 45.0, "second torrent is 45% done"
 
     def _list_with(self, tmp_path, stdout):
         ts = TransmissionSession(str(tmp_path))
@@ -235,24 +235,24 @@ class TestTransmissionSession:
             "Sum:                 None                  0.0       0.0\n"
         )
         [entry] = self._list_with(tmp_path, stdout)
-        assert entry["id"] == 1
-        assert entry["percent_done"] == 0.0
-        assert entry["have"] == "None"
-        assert entry["eta"] == "Unknown"
-        assert entry["status"] == "Idle"
-        assert entry["name"] == "f.bin"
+        assert entry["id"] == 1, "row id is parsed"
+        assert entry["percent_done"] == 0.0, "decimal Done is parsed to float"
+        assert entry["have"] == "None", "single-token 'None' Have is preserved"
+        assert entry["eta"] == "Unknown", "ETA column is parsed"
+        assert entry["status"] == "Idle", "status column is parsed"
+        assert entry["name"] == "f.bin", "name column is parsed"
 
     def test_list_parses_two_token_have_and_eta(self, tmp_path):
         """'Have' and 'ETA' are each two tokens here, which used to shift the
         status and name columns."""
         stdout = "  2    45%  500 MB   3 hours        0.0   200.0   0.1  Downloading  another list.7z\n"
         [entry] = self._list_with(tmp_path, stdout)
-        assert entry["percent_done"] == 45.0
-        assert entry["have"] == "500 MB"
-        assert entry["eta"] == "3 hours"
-        assert entry["down"] == 200.0
-        assert entry["status"] == "Downloading"
-        assert entry["name"] == "another list.7z"
+        assert entry["percent_done"] == 45.0, "percent is parsed"
+        assert entry["have"] == "500 MB", "two-token Have is kept together"
+        assert entry["eta"] == "3 hours", "two-token ETA is kept together"
+        assert entry["down"] == 200.0, "download rate is parsed"
+        assert entry["status"] == "Downloading", "status is not shifted by multi-token columns"
+        assert entry["name"] == "another list.7z", "name with a space is preserved"
 
     def test_list_parses_multi_word_status(self, tmp_path):
         stdout = "  3    12.5%  1.20 GB  2 min      10.0   900.0   0.1  Up & Down    big.7z\n"
@@ -382,12 +382,12 @@ class TestTransmissionSession:
         polls = [[self._entry(1, 45.0)], [self._entry(1, 100.0)], []]
         self._run_wait(tmp_path, polls, stream)
         out = stream.getvalue()
-        assert "big.7z" in out
-        assert "45.0%" in out
-        assert "500 MB" in out
-        assert "ETA 3 hours" in out
-        assert "200.0 kB/s" in out
-        assert "0/1 complete" in out
+        assert "big.7z" in out, "torrent name is reported"
+        assert "45.0%" in out, "progress percent is reported"
+        assert "500 MB" in out, "downloaded size is reported"
+        assert "ETA 3 hours" in out, "ETA is reported"
+        assert "200.0 kB/s" in out, "download speed is reported"
+        assert "0/1 complete" in out, "completion count is reported"
 
     def test_wait_for_all_progress_counts_completed_torrents(self, tmp_path):
         import io
