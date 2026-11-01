@@ -1287,9 +1287,9 @@ class TestDownloadHashmobWordlist:
             patch("hate_crack.api.time.sleep"),
         ):
             result = download_hashmob_wordlist("test.txt", str(out))
-        assert result is True
-        assert out.exists()
-        assert out.read_bytes() == b"wordlist data"
+        assert result is True, "download reports success"
+        assert out.exists(), "output file is created"
+        assert out.read_bytes() == b"wordlist data", "downloaded content is written"
 
     def test_404_returns_false(self, tmp_path):
         import requests as req
