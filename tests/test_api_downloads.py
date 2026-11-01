@@ -473,8 +473,9 @@ class TestTransmissionSession:
             patch.object(ts, "list", side_effect=KeyboardInterrupt),
             patch("time.sleep"),
         ):
-            with pytest.raises(KeyboardInterrupt):
+            with pytest.raises(KeyboardInterrupt) as exc_info:
                 ts.wait_for_all(on_complete=lambda *a: None)
+        assert isinstance(exc_info.value, KeyboardInterrupt), "KeyboardInterrupt propagates out of wait_for_all"
 
     def test_exit_calls_stop_and_cleans_cfg_dir(self, tmp_path):
         proc_mock = MagicMock()
