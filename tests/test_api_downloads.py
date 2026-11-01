@@ -2120,10 +2120,10 @@ class TestDownloadOfficialWordlist:
             patch("hate_crack.api._hashmob_limiter.wait"),
         ):
             result = download_official_wordlist("official.txt", str(out))
-        assert result is True
-        assert mock_get.call_count == 2
-        assert mock_sleep.call_count == 1
-        assert out.exists()
+        assert result is True, "download eventually succeeds after retry"
+        assert mock_get.call_count == 2, "retries once after the 429"
+        assert mock_sleep.call_count == 1, "backoff sleeps once between attempts"
+        assert out.exists(), "output file is created on success"
 
     def test_meta_refresh_redirect_uses_verbatim_url(self, tmp_path):
         real_url = "https://real-server.example.com/actual_official_file.7z"
