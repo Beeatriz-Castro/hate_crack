@@ -224,8 +224,9 @@ class TestTransmissionSession:
             patch("subprocess.run", return_value=run_result),
             patch.object(ts, "list", return_value=[{"id": 1}]),
         ):
-            with pytest.raises(RuntimeError):
+            with pytest.raises(RuntimeError) as exc_info:
                 ts.add("/tmp/foo.torrent")
+        assert isinstance(exc_info.value, RuntimeError), "add raises RuntimeError when no new torrent id appears"
 
     def test_list_parses_rows(self, tmp_path):
         ts = TransmissionSession(str(tmp_path))
