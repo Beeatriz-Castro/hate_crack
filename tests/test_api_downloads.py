@@ -2048,8 +2048,9 @@ class TestDownloadHashmobCombinedLeft:
 
     def test_invalid_variant_raises_value_error(self, tmp_path):
         with patch("hate_crack.api.get_hcat_wordlists_dir", return_value=str(tmp_path)):
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError) as exc_info:
                 download_hashmob_combined_left(0, variant="bogus")
+        assert isinstance(exc_info.value, ValueError), "an invalid variant raises ValueError"
 
     def test_defaults_to_wordlists_dir(self, tmp_path):
         mock_response = self._make_mock_response()
