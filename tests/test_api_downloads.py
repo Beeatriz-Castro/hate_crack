@@ -2984,51 +2984,17 @@ class TestWeakpassApiListing:
 
     def test_rate_coerced_to_float(self):
         """F4: Test that rate is coerced to float, defaulting to 0.0 on failure."""
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "data": [
-                {
-                    "id": 1,
-                    "name": "valid-rate",
-                    "rank": "A",
-                    "size": 100,
-                    "count": 10,
-                    "rate": "2.5",  # string instead of float
-                    "slug": "valid-rate",
-                    "torrent_url": "url1",
-                },
-                {
-                    "id": 2,
-                    "name": "invalid-rate",
-                    "rank": "B",
-                    "size": 200,
-                    "count": 20,
-                    "rate": "not-a-number",  # invalid
-                    "slug": "invalid-rate",
-                    "torrent_url": "url2",
-                },
-                {
-                    "id": 3,
-                    "name": "missing-rate",
-                    "rank": "C",
-                    "size": 300,
-                    "count": 30,
-                    "rate": None,  # missing
-                    "slug": "missing-rate",
-                    "torrent_url": "url3",
-                },
-            ],
-            "meta": {"last_page": 1},
-        }
-        mock_resp.raise_for_status.return_value = None
-
+        mock_resp = _json_response([
+            _weakpass_entry(1, "valid-rate", "A", rate="2.5"),
+            _weakpass_entry(2, "invalid-rate", "B", 200, 20, "not-a-number", "invalid-rate", "url2"),
+            _weakpass_entry(3, "missing-rate", "C", 300, 30, None, "missing-rate", "url3"),
+        ])
         with patch("hate_crack.api.requests.get", return_value=mock_resp):
             result = _api_mod.fetch_all_weakpass_wordlists_multithreaded()
-
-        assert len(result) == 3
-        assert result[0]["rate"] == 2.5
-        assert result[1]["rate"] == 0.0
-        assert result[2]["rate"] == 0.0
+        assert len(result) == 3, "all three entries are kept"
+        assert result[0]["rate"] == 2.5, "numeric string rate is coerced to float"
+        assert result[1]["rate"] == 0.0, "invalid rate defaults to 0.0"
+        assert result[2]["rate"] == 0.0, "missing rate defaults to 0.0"
 
     def test_falsy_ids_not_deduplicated(self):
         """F5: Test that entries with falsy ids are kept, not de-duplicated."""
