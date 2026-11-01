@@ -2372,8 +2372,9 @@ class TestHashmobBackoff:
 
     def test_non_429_exception_reraises(self):
         fn = MagicMock(side_effect=ValueError("not a 429"))
-        with pytest.raises(ValueError, match="not a 429"):
+        with pytest.raises(ValueError, match="not a 429") as exc_info:
             _with_hashmob_backoff(fn)
+        assert "not a 429" in str(exc_info.value), "a non-429 error is re-raised unchanged"
 
     def test_respects_retry_after_over_default_ladder_step(self):
         """A 429 carrying Retry-After: 5 should sleep ~5s, not the default
