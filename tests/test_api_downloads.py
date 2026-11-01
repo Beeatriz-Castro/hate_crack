@@ -2998,63 +2998,19 @@ class TestWeakpassApiListing:
 
     def test_falsy_ids_not_deduplicated(self):
         """F5: Test that entries with falsy ids are kept, not de-duplicated."""
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "data": [
-                {
-                    "id": 1,
-                    "name": "list1",
-                    "rank": "A",
-                    "size": 100,
-                    "count": 10,
-                    "rate": 1.0,
-                    "slug": "list1",
-                    "torrent_url": "url1",
-                },
-                {
-                    "id": None,  # falsy id
-                    "name": "no-id-1",
-                    "rank": "B",
-                    "size": 200,
-                    "count": 20,
-                    "rate": 2.0,
-                    "slug": "no-id-1",
-                    "torrent_url": "url2",
-                },
-                {
-                    "id": None,  # another falsy id
-                    "name": "no-id-2",
-                    "rank": "C",
-                    "size": 300,
-                    "count": 30,
-                    "rate": 3.0,
-                    "slug": "no-id-2",
-                    "torrent_url": "url3",
-                },
-                {
-                    "id": "",  # empty string, also falsy
-                    "name": "empty-id",
-                    "rank": "D",
-                    "size": 400,
-                    "count": 40,
-                    "rate": 4.0,
-                    "slug": "empty-id",
-                    "torrent_url": "url4",
-                },
-            ],
-            "meta": {"last_page": 1},
-        }
-        mock_resp.raise_for_status.return_value = None
-
+        mock_resp = _json_response([
+            _weakpass_entry(1, "list1", "A"),
+            _weakpass_entry(None, "no-id-1", "B", 200, 20, 2.0, "no-id-1", "url2"),
+            _weakpass_entry(None, "no-id-2", "C", 300, 30, 3.0, "no-id-2", "url3"),
+            _weakpass_entry("", "empty-id", "D", 400, 40, 4.0, "empty-id", "url4"),
+        ])
         with patch("hate_crack.api.requests.get", return_value=mock_resp):
             result = _api_mod.fetch_all_weakpass_wordlists_multithreaded()
-
-        # All 4 entries should be kept, even with repeated falsy ids
-        assert len(result) == 4
-        assert result[0]["name"] == "list1"
-        assert result[1]["name"] == "no-id-1"
-        assert result[2]["name"] == "no-id-2"
-        assert result[3]["name"] == "empty-id"
+        assert len(result) == 4, "entries with falsy ids are all kept"
+        assert result[0]["name"] == "list1", "entry 1 kept"
+        assert result[1]["name"] == "no-id-1", "falsy-id entry kept"
+        assert result[2]["name"] == "no-id-2", "second falsy-id entry kept"
+        assert result[3]["name"] == "empty-id", "empty-string-id entry kept"
 
 
 class TestWeakpassWordlistMenu:
