@@ -553,8 +553,9 @@ class TestRunTorrentSession:
             patch("hate_crack.api.check_7z", return_value=True),
             patch("hate_crack.api.TransmissionSession", ts_cls),
         ):
-            with pytest.raises(KeyboardInterrupt):
+            with pytest.raises(KeyboardInterrupt) as exc_info:
                 run_torrent_session(["a.torrent"], "/tmp/save")
+        assert isinstance(exc_info.value, KeyboardInterrupt), "KeyboardInterrupt propagates out of run_torrent_session"
 
 
 class TestGetHcatPotfilePath:
