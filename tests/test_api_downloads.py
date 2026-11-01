@@ -1373,17 +1373,17 @@ class TestDownloadHashmobRule:
             patch("hate_crack.api._hashmob_limiter.wait"),
         ):
             result = download_hashmob_rule("some.rule", str(out), resource_type="rule")
-        assert result is True
-        assert mock_get.call_count == 2
+        assert result is True, "download succeeds via the fallback URL"
+    assert mock_get.call_count == 2, "primary then fallback are both tried"
         first_url = mock_get.call_args_list[0].args[0]
         second_url = mock_get.call_args_list[1].args[0]
         assert (
-            first_url
-            == "https://www.hashmob.net/api/v2/downloads/research/rules/some.rule"
+            first_url 
+            == "https://www.hashmob.net/api/v2/downloads/research/rules/some.rule", "primary URL tried first"
         )
         assert (
-            second_url
-            == "https://hashmob.net/api/v2/downloads/research/official/hashmob_rules/some.rule"
+            second_url 
+            == "https://hashmob.net/api/v2/downloads/research/official/hashmob_rules/some.rule", "official alternate URL tried second"
         )
 
     def test_missing_resource_type_falls_back_to_public_prefix(self, tmp_path):
