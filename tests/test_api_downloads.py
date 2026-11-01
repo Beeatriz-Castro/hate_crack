@@ -988,29 +988,24 @@ class TestFetchTorrentMetadataUpdated:
 
         seen_urls = []
 
-        def mock_get(
-            url, params=None, headers=None, stream=False, timeout=None, **kwargs
-        ):
+        def _empty():
+            return MagicMock(json=MagicMock(return_value={"data": []}), raise_for_status=MagicMock())
+
+        def _not_found():
+            err = req_lib.HTTPError()
+            err.response = MagicMock(status_code=404)
+            return MagicMock(raise_for_status=MagicMock(side_effect=err))
+
+        def mock_get(url, params=None, headers=None, stream=False, timeout=None, **kwargs):
             seen_urls.append(url)
-            resp = MagicMock()
-            if params and "name" in params:
-                resp.json.return_value = {"data": []}
-                resp.raise_for_status = MagicMock()
-            else:
-                err = req_lib.HTTPError()
-                err.response = MagicMock(status_code=404)
-                resp.raise_for_status = MagicMock(side_effect=err)
-            return resp
+            return {True: _empty(), False: _not_found()}[bool(params and "name" in params)]
 
         monkeypatch.setattr(api.requests, "get", mock_get)
         result = api.fetch_torrent_metadata("nonexistent.txt")
-        assert result is None
+        assert result is None, "an unresolvable name returns None"
         captured = capsys.readouterr()
-        # F2: Updated error message
-        assert "Could not resolve a Weakpass torrent for" in captured.out
-        # Assert no URL contains the old /files/ fallback
-        for url in seen_urls:
-            assert "weakpass.com/files/" not in url
+        assert "Could not resolve a Weakpass torrent for" in captured.out, "prints the not-found message"
+        assert "weakpass.com/files/" not in "\n".join(seen_urls), "no legacy /files/ fallback URL is used"
 
     def test_torrent_download_gets_timeout(self, monkeypatch, tmp_path):
         """The torrent GET is passed timeout=WEAKPASS_TIMEOUT."""
