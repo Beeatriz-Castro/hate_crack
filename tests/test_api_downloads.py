@@ -2657,44 +2657,11 @@ class TestWeakpassApiListing:
 
     def test_tier_mapping(self):
         """Test tier to rank mapping: S=7, b(lowercase)=5, None=0."""
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "data": [
-                {
-                    "id": 1,
-                    "name": "s-tier",
-                    "rank": "S",
-                    "size": 100,
-                    "count": 10,
-                    "rate": 1.0,
-                    "slug": "s-tier",
-                    "torrent_url": "url1",
-                },
-                {
-                    "id": 2,
-                    "name": "b-tier",
-                    "rank": "b",
-                    "size": 200,
-                    "count": 20,
-                    "rate": 2.0,
-                    "slug": "b-tier",
-                    "torrent_url": "url2",
-                },
-                {
-                    "id": 3,
-                    "name": "no-tier",
-                    "rank": None,
-                    "size": 300,
-                    "count": 30,
-                    "rate": 3.0,
-                    "slug": "no-tier",
-                    "torrent_url": "url3",
-                },
-            ],
-            "meta": {"last_page": 1},
-        }
-        mock_resp.raise_for_status.return_value = None
-
+        mock_resp = _json_response([
+            _weakpass_entry(1, "s-tier", "S"),
+            _weakpass_entry(2, "b-tier", "b", 200, 20, 2.0, "b-tier", "url2"),
+            _weakpass_entry(3, "no-tier", None, 300, 30, 3.0, "no-tier", "url3"),
+        ])
         with patch("hate_crack.api.requests.get", return_value=mock_resp):
             result = _api_mod.fetch_all_weakpass_wordlists_multithreaded()
 
