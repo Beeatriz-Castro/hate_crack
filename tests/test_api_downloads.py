@@ -1846,13 +1846,13 @@ class TestDownloadHashmobArchive:
             self._patch_stdin_tty(),
         ):
             result = download_hashmob_archive(entry)
-        assert result is True
+        assert result is True, "download succeeds"
         # The api-key header must never reach the untrusted host: the request
         # actually made must target the constructed hashmob.net fallback URL.
         called_url = mock_get.call_args.args[0]
-        assert called_url == "https://hashmob.net/api/v2/archive/evil.7z"
-        assert mock_get.call_args.kwargs["headers"] == {"api-key": "secret-key"}
-        assert mock_get.call_count == 1
+        assert called_url == "https://hashmob.net/api/v2/archive/evil.7z", "request targets the trusted hashmob host, not the untrusted url"
+        assert mock_get.call_args.kwargs["headers"] == {"api-key": "secret-key"}, "api-key is sent only to the trusted host"
+        assert mock_get.call_count == 1, "exactly one request is made"
 
     def test_trusted_www_host_is_kept(self, tmp_path):
         entry = {
