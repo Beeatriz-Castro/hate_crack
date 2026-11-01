@@ -757,31 +757,27 @@ class TestResolveWeakpassTorrentUrl:
         """example-list.txt.7z.torrent 404s twice then resolves on example-list.txt."""
         calls = []
 
+        def _not_found():
+            err = req_lib.HTTPError()
+            err.response = MagicMock(status_code=404)
+            return MagicMock(raise_for_status=MagicMock(side_effect=err))
+
+        def _resolved():
+            return MagicMock(
+                json=MagicMock(return_value={
+                    "data": {"torrent_url": "https://weakpass.com/download/1/example-list.txt.torrent"}
+                }),
+                raise_for_status=MagicMock(),
+            )
+
         def mock_get(url, params=None, headers=None, timeout=None):
             calls.append(url)
-            resp = MagicMock()
-            if "example-list.txt.7z.torrent" in url:
-                err = req_lib.HTTPError()
-                err.response = MagicMock(status_code=404)
-                resp.raise_for_status = MagicMock(side_effect=err)
-            elif "example-list.txt.7z" in url:
-                err = req_lib.HTTPError()
-                err.response = MagicMock(status_code=404)
-                resp.raise_for_status = MagicMock(side_effect=err)
-            else:
-                resp.json.return_value = {
-                    "data": {
-                        "torrent_url": "https://weakpass.com/download/1/example-list.txt.torrent"
-                    }
-                }
-                resp.raise_for_status = MagicMock()
-            return resp
+            return {True: _not_found(), False: _resolved()}[".7z" in url]
 
         monkeypatch.setattr(api.requests, "get", mock_get)
         result = api._resolve_weakpass_torrent_url("example-list.txt.7z.torrent")
-        assert result == "https://weakpass.com/download/1/example-list.txt.torrent"
-        # Should have tried all three candidates
-        assert len(calls) == 3
+        assert result == "https://weakpass.com/download/1/example-list.txt.torrent", "resolves on the bare name after the .7z candidates 404"
+        assert len(calls) == 3, "all three candidates are tried"
 
     def test_path_with_space_and_slash_is_quoted(self, monkeypatch):
         """Names containing space and / are quoted (%20, %2F) in request path."""
