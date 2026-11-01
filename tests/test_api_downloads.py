@@ -2264,12 +2264,12 @@ class TestStreamedDownload:
         out = tmp_path / "out.txt"
         with patch("hate_crack.api.requests.get", return_value=mock_resp) as mock_get:
             result = _streamed_download("https://example.com/file.txt", str(out))
-        assert result is True
-        assert out.exists()
-        assert out.read_bytes() == content
-        assert not (tmp_path / "out.txt.part").exists()
+        assert result is True, "download reports success"
+        assert out.exists(), "output file is created"
+        assert out.read_bytes() == content, "full content is written"
+        assert not (tmp_path / "out.txt.part").exists(), "temporary .part file is cleaned up"
         mock_get.assert_called_once()
-        assert mock_get.call_args.args[0] == "https://example.com/file.txt"
+        assert mock_get.call_args.args[0] == "https://example.com/file.txt", "correct URL is requested"
 
     def test_partial_cleanup_on_error(self, tmp_path):
         mock_resp = _make_mock_response(status_code=200, content=b"some data")
