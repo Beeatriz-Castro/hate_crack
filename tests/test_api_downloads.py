@@ -1374,17 +1374,17 @@ class TestDownloadHashmobRule:
         ):
             result = download_hashmob_rule("some.rule", str(out), resource_type="rule")
         assert result is True, "download succeeds via the fallback URL"
-    assert mock_get.call_count == 2, "primary then fallback are both tried"
+        assert mock_get.call_count == 2, "primary then fallback are both tried"
         first_url = mock_get.call_args_list[0].args[0]
         second_url = mock_get.call_args_list[1].args[0]
         assert (
-            first_url 
-            == "https://www.hashmob.net/api/v2/downloads/research/rules/some.rule", "primary URL tried first"
-        )
+            first_url
+                == "https://www.hashmob.net/api/v2/downloads/research/rules/some.rule"
+        ), "primary URL tried first"
         assert (
-            second_url 
-            == "https://hashmob.net/api/v2/downloads/research/official/hashmob_rules/some.rule", "official alternate URL tried second"
-        )
+            second_url
+                == "https://hashmob.net/api/v2/downloads/research/official/hashmob_rules/some.rule"
+        ), "official alternate URL tried second"
 
     def test_missing_resource_type_falls_back_to_public_prefix(self, tmp_path):
         mock_response = self._make_mock_response()
@@ -1529,13 +1529,13 @@ class TestDownloadHashmobMask:
             patch("hate_crack.api._hashmob_limiter.wait"),
         ):
             result = download_hashmob_mask("test.hcmask", str(out))
-        assert result is True
-        assert out.exists()
-        assert out.read_bytes() == b"mask data"
+        assert result is True, "download reports success"
+        assert out.exists(), "output file is created"
+        assert out.read_bytes() == b"mask data", "downloaded mask content is written"
         called_url = mock_get.call_args.args[0]
         assert (
             called_url
-            == "https://hashmob.net/api/v2/downloads/research/masks/test.hcmask"
+            == "https://hashmob.net/api/v2/downloads/research/masks/test.hcmask", "mask download URL is correct"
         )
 
     def test_sends_api_key_header_when_configured(self, tmp_path):
