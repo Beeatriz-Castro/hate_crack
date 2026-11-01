@@ -41,6 +41,18 @@ import requests as req_lib
 
 from hate_crack.config_writer import write_env
 
+def _weakpass_entry(id, name="list", rank="S", size=100, count=10, rate=1.0,
+                    slug=None, torrent_url="url"):
+    """Build a single Weakpass wordlist entry for tests."""
+    return {"id": id, "name": name, "rank": rank, "size": size, "count": count,
+            "rate": rate, "slug": slug or name, "torrent_url": torrent_url}
+
+def _json_response(data, last_page=1):
+    """Mock a paged Weakpass API JSON response."""
+    resp = MagicMock()
+    resp.json.return_value = {"data": data, "meta": {"last_page": last_page}}
+    resp.raise_for_status.return_value = None
+    return resp
 
 class TestSanitizeFilename:
     def test_normal_filename_unchanged(self):
@@ -2649,40 +2661,15 @@ class TestWeakpassApiListing:
 
     def test_two_entries_same_name_different_id_both_kept(self):
         """Test that two entries with same name but different id are both kept."""
-        mock_resp = MagicMock()
-        mock_resp.json.return_value = {
-            "data": [
-                {
-                    "id": 1,
-                    "name": "example-list.txt",
-                    "rank": "S",
-                    "size": 100,
-                    "count": 10,
-                    "rate": 1.0,
-                    "slug": "example-list-txt",
-                    "torrent_url": "url1",
-                },
-                {
-                    "id": 2,
-                    "name": "example-list.txt",
-                    "rank": "A",
-                    "size": 200,
-                    "count": 20,
-                    "rate": 2.0,
-                    "slug": "example-list-txt-2",
-                    "torrent_url": "url2",
-                },
-            ],
-            "meta": {"last_page": 1},
-        }
-        mock_resp.raise_for_status.return_value = None
-
+        mock_resp = _json_response([
+            _weakpass_entry(1, "example-list.txt", "S", slug="example-list-txt"),
+            _weakpass_entry(2, "example-list.txt", "A", 200, 20, 2.0, "example-list-txt-2", "url2"),
+        ])
         with patch("hate_crack.api.requests.get", return_value=mock_resp):
             result = _api_mod.fetch_all_weakpass_wordlists_multithreaded()
-
-        assert len(result) == 2
-        assert result[0]["id"] == 1
-        assert result[1]["id"] == 2
+        assert len(result) == 2, "both entries with same name but different id are kept"
+        assert result[0]["id"] == 1, "first entry preserved"
+        assert result[1]["id"] == 2, "second entry preserved"
 
     def test_same_id_on_two_pages_kept_once(self):
         """Test that the same id on two pages is kept only once (first occurrence)."""
