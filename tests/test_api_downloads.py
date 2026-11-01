@@ -3271,12 +3271,12 @@ class TestDownloadAllWeakpassTorrents:
         )
 
         # Cache should have been written
-        assert cache_file.exists()
+        assert cache_file.exists(), "cache file is created"
         with open(cache_file) as f:
             cached = json.load(f)
-        assert len(cached) == 2
-        assert cached[0]["id"] == 1
-        assert cached[1]["id"] == 2
+        assert len(cached) == 2, "both wordlists are cached"
+        assert cached[0]["id"] == 1, "first cached entry id"
+        assert cached[1]["id"] == 2, "second cached entry id"
 
     def test_prints_error_and_returns_when_fetch_empty(self, tmp_path, capsys):
         """When fetch returns [], prints error and doesn't write cache."""
